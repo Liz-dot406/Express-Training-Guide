@@ -131,7 +131,6 @@ Common ones include:
 
 ![expressnodejs](image/Readme/expressnodejs.png)
 
-
 REQUEST & RESPONSE Objects in Express
 
 In Express, every time a client (like Postman, a browser, or a frontend app) sends a request to your server, Express provides **two main objects** inside your route handler. That is Request and Response.
@@ -160,7 +159,6 @@ Common properties:
 **Response (res)** -used by the server to **send a reply** back to the client.
 
 Common Properties:
-
 
 | Method             | Description           | Example                               |
 | ------------------ | --------------------- | ------------------------------------- |
@@ -203,7 +201,7 @@ pnpm init
 2. Install development tools (TypeScript and types):
 
 ```bash
-pnpm add -D typescript ts-node-dev @types/node
+pnpm add -D typescript @types/node
 ```
 
 3. Install Express and types for Express:
