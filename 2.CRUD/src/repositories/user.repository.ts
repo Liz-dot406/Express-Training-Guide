@@ -1,14 +1,15 @@
 import { getPool } from '../db/config'
+import { NewUser, UpdateUser, User } from '../Types/user.type';
 
 //get all users
-export const getUsers = async () => {
+export const getUsers = async (): Promise<User[]> => {
     const pool = await getPool();
     const result = await pool.request().query('SELECT * FROM Users');
     return result.recordset;
 }
 
 //get user by id
-export const getUserById = async (id: number) => {
+export const getUserById = async (id: number): Promise<User[]> => {
     const pool = await getPool();
     const result = await pool
         .request()
@@ -17,8 +18,8 @@ export const getUserById = async (id: number) => {
     return result.recordset[0];
 };
 
-//create new user
-export const createUser = async (user: any) => {
+//create new user -user: any changed to user: NewUser
+export const createUser = async (user: NewUser) => {
     const pool = await getPool();
     await pool
         .request()
@@ -40,7 +41,7 @@ export const createUser = async (user: any) => {
 */
 
 //update a user
-export const updateUser = async (id: number, user: any) => {
+export const updateUser = async (id: number, user: UpdateUser) => {
     const pool = await getPool();
     await pool
         .request()

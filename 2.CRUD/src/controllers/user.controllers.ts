@@ -1,6 +1,7 @@
 
 import { Request, Response } from 'express';
 import * as userServices from '../services/user.service'
+import { User } from '../Types/user.type';
 
 //get all users
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -10,7 +11,6 @@ export const getAllUsers = async (req: Request, res: Response) => {
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
-
 }
 
 //get user by id    
@@ -43,23 +43,24 @@ export const createUser = async (req: Request, res: Response) => {
 //update a user
 export const updateUser = async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
-    const user = req.body;
+
     //badrequest if id is not a number
     if (isNaN(id)) {
         return res.status(400).json({ message: 'Invalid user id' });
     }
 
-    //notfound if user does not exist
-    const existingUser = await userServices.getUser(id);
-    if (!existingUser) {
-        return res.status(404).json({ message: 'User not found' });
-    }
     //proceed to update
     try {
+        const user = req.body;
         const result = await userServices.updateUser(id, user);
         res.status(200).json(result);
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        //notfound if user does not exist
+        if (error.message === 'User not found') {
+            return res.status(404).json({ message: 'User not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 }
 
@@ -71,18 +72,17 @@ export const deleteUser = async (req: Request, res: Response) => {
         return res.status(400).json({ message: 'Invalid user id' });
     }
 
-    //notfound if user does not exist
-    const user = await userServices.getUser(id);
-    if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-    }
-
     //proceed to delete
     try {
         const result = await userServices.deleteUser(id);
         res.status(200).json(result);
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        //notfound if user does not exist
+        if (error.message === 'User not found') {
+            return res.status(404).json({ message: 'User not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 }
 

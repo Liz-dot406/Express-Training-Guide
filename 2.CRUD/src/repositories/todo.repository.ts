@@ -1,14 +1,15 @@
 import { getPool } from '../db/config'
+import { NewTodo, Todo, UpdateTodo } from '../Types/todo.type';
 
 //get all todos
-export const getAllTodos = async () => {
+export const getAllTodos = async (): Promise<Todo[]> => {
     const pool = await getPool();
     const result = await pool.request().query('SELECT * FROM Todos');
     return result.recordset;
 }
 
 //get todo by id
-export const getTodoById = async (id: number) => {
+export const getTodoById = async (id: number): Promise<Todo> => {
     const pool = await getPool();
     const result = await pool
         .request()
@@ -18,7 +19,7 @@ export const getTodoById = async (id: number) => {
 }
 
 //create new todo
-export const createTodo = async (todo: any) => {
+export const createTodo = async (todo: NewTodo) => {
     const pool = await getPool();
     await pool
         .request()
@@ -37,11 +38,10 @@ export const createTodo = async (todo: any) => {
     "due_date": "2023-12-31",
     "user_id": 1
 }
-
 */
 
 // update a todo
-export const updateTodo = async (id: number, todo: any) => {
+export const updateTodo = async (id: number, todo: UpdateTodo) => {
     const pool = await getPool();
     await pool
         .request()

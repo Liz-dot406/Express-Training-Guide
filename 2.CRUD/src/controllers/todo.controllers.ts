@@ -47,18 +47,19 @@ export const updateTodo = async (req: Request, res: Response) => {
     if (isNaN(id)) {
         return res.status(400).json({ message: 'Invalid todo id' });
     }
-    //not found if todo with id does not exist
-    const existingTodo = await todoServices.getTodo(id);
-    if (!existingTodo) {
-        return res.status(404).json({ message: 'Todo not found' });
-    }
+
     //proceed to update
     try {
         const result = await todoServices.updateTodo(id, todo);
         res.status(200).json(result);
     }
     catch (error: any) {
-        res.status(500).json({ error: error.message });
+        //not found if todo with id does not exist
+        if (error.message === 'Todo not found') {
+            return res.status(404).json({ message: 'Todo not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 }
 
@@ -70,18 +71,17 @@ export const deleteTodo = async (req: Request, res: Response) => {
         return res.status(400).json({ message: 'Invalid user id' });
     }
 
-    //not found if todo with id does not exist
-    const existingTodo = await todoServices.getTodo(id);
-    if (!existingTodo) {
-        return res.status(404).json({ message: 'Todo not found' });
-    }
-
     //proceed to delete
     try {
         const result = await todoServices.deleteTodo(id);
         res.status(204).json(result);
     }
     catch (error: any) {
-        res.status(500).json({ error: error.message });
+        //not found if todo with id does not exist
+        if (error.message === 'Todo not found') {
+            return res.status(404).json({ message: 'Todo not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 }
