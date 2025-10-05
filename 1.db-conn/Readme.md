@@ -131,7 +131,7 @@ Security:
 If you prefer a connection string instead of individual variables, add this to `.env`:
 
 ```properties
-SQL_CONNECTION_STRING=Server=BRIAN-KEMBOI;Database=todo-db;User Id=sa;Password=DevKemboi@2025;Encrypt=true;TrustServerCertificate=true;
+SQL_CONNECTION_STRING=Server={your server name};Database=todo-db;User Id=sa;Password={password};Encrypt=true;TrustServerCertificate=true;
 ```
 
 `mssql` accepts either a configuration object or a full connection string.
