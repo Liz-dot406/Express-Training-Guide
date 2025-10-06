@@ -39,6 +39,8 @@ Each person (layer) has one job — and they work together to deliver a complete
 
 ## Folder mapping in this project
 
+![crudfolders](image/Readme/crudfolders.png)
+
 - `router/` — Defines the HTTP endpoints and connects them to controllers
 - `controllers/` — Handles HTTP details like parsing requests and sending responses `services/` — Holds business logic and validation rules
 - `repositories/` — Manages SQL queries and direct DB interactions

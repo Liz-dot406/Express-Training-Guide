@@ -104,6 +104,20 @@ When building APIs, you'll create routes (URLs) that respond to these HTTP metho
 
 Each method represents an **action** your API can perform on a resource.
 
+## Understanding REST APIs
+
+REST API stands for **Representational State Transfer** API.
+
+It is a type of API (Application Programming Interface) that allows communication between different systems over the internet. REST APIs work by sending requests and receiving responses, typically in JSON format, between the client and server
+
+![restapi.png](image/Readme/restapi.png)
+
+* A request is sent from the client to the server via a web URL, using one of the HTTP methods.
+* The server then responds with the requested resource, which could be HTML, XML, Image, or JSON, with JSON being the most commonly used format for modern web services.
+* These methods map to CRUD operations (Create, Read, Update, Delete) for managing resources on the web.
+
+Read more about Rest API here: [REST API Introduction](https://www.geeksforgeeks.org/node-js/rest-api-introduction/)
+
 ### HTTP Status Codes — How Did It Go?
 
 | Code                       | Meaning                             | When You Might See It          |
