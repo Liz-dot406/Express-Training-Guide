@@ -46,18 +46,22 @@ export const getTodos = async (req: Request, res: Response) => {
 
 //get todo by id
 export const getTodoById = async (req: Request, res: Response) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id)
     try {
-        const todo = await todoServices.getTodo(id);
-        if (todo) {
-            res.status(200).json(todo);
-        } else {
-            res.status(404).json({ message: 'Todo not found' });
-        }
+        const todo = await todoServices.getTodo(id)
+        res.status(200).json(todo)
+
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        if (error.message === 'Inavlid todoid') {
+            res.status(400).json({ message: 'Inavlid todoid' })
+        } else if (error.message == 'Todo not found') {
+            res.status(404).json({ message: 'Todo not found' })
+        } else {
+            res.status(500).json({ error: 'Internal server error' })
+        }
     }
 }
+
 
 //create new todo
 export const createTodo = async (req: Request, res: Response) => {
@@ -73,46 +77,40 @@ export const createTodo = async (req: Request, res: Response) => {
 //update a todo
 export const updateTodo = async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
-    const todo = req.body;
-    //badrequest if id is not a number
-    if (isNaN(id)) {
-        return res.status(400).json({ message: 'Invalid todo id' });
+    const todo = req.body
+    try {
+        const result = await todoServices.updateTodo(id, todo)
+        res.status(200).json(result)
+    } catch (error: any) {
+        if (error.message === 'Inavlid todoid') {
+            res.status(400).json({ message: 'Inavlid todoid' })
+        } else if (error.message == 'Todo not found') {
+            res.status(404).json({ message: 'Todo not found' })
+        } else {
+            res.status(500).json({ error: 'Internal server error' })
+        }
+
     }
 
-    //proceed to update
-    try {
-        const result = await todoServices.updateTodo(id, todo);
-        res.status(200).json(result);
-    }
-    catch (error: any) {
-        //not found if todo with id does not exist
-        if (error.message === 'Todo not found') {
-            return res.status(404).json({ message: 'Todo not found' });
-        } else {
-            res.status(500).json({ error: error.message });
-        }
-    }
 }
 
-//delete a todo
+
+// delete a todo by id
 export const deleteTodo = async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
-    //badrequest if id is not a number
-    if (isNaN(id)) {
-        return res.status(400).json({ message: 'Invalid user id' });
-    }
 
-    //proceed to delete
     try {
-        const result = await todoServices.deleteTodo(id);
-        res.status(204).json(result);
-    }
-    catch (error: any) {
-        //not found if todo with id does not exist
-        if (error.message === 'Todo not found') {
-            return res.status(404).json({ message: 'Todo not found' });
+        const result = await todoServices.deletTodo(id)
+        res.status(204).json(result)
+    } catch (error: any) {
+        if (error.message === 'Inavlid todoid') {
+            res.status(400).json({ message: 'Inavlid todoid' })
+        } else if (error.message == 'Todo not found') {
+            res.status(404).json({ message: 'Todo not found' })
         } else {
-            res.status(500).json({ error: error.message });
+
+            res.status(500).json({ error: 'Internal server error' })
         }
+
     }
 }

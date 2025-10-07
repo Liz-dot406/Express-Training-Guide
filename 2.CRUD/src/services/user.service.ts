@@ -7,11 +7,19 @@ export const createUser = async (user: NewUser) => await userRepositories.create
 
 //export const updateUser = async (id: number, user: any) => await userRepositories.updateUser(id, user);
 export const updateUser = async (id: number, user: UpdateUser) => {
+// bad request
+    if (isNaN(id)) {
+        throw new Error('Inavlid userid')
+    }
     await ensureUserExists(id);
-   return await userRepositories.updateUser(id, user);
+    return await userRepositories.updateUser(id, user);
 }
 // export const deleteUser = async (id: number) => await userRepositories.deleteUser(id);
 export const deleteUser = async (id: number) => {
+    // bad request
+    if (isNaN(id)) {
+        throw new Error('Inavlid userid')
+    }
     await ensureUserExists(id);
     return await userRepositories.deleteUser(id);
 }
