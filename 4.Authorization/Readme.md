@@ -93,10 +93,10 @@ export const isAuthenticated = (req: Request, res: Response, next: NextFunction)
     try {
         // Verify and decode the JWT token
         const decode = jwt.verify(token, process.env.JWT_SECRET as string);
-      
+    
         // Attach user info to request object for use in route handlers
         (req as any).user = decode; // Type assertion to avoid TypeScript error
-      
+    
         // Pass control to next middleware/route handler
         next();
 
@@ -185,7 +185,7 @@ export default todoRoutes;
 
 ### Route Categories
 
-#### 🔒 Protected Routes (Require Authentication)
+### Protected Routes (Require Authentication)
 
 These routes use the `isAuthenticated` middleware:
 
@@ -205,7 +205,7 @@ These routes use the `isAuthenticated` middleware:
    app.get('/alltodos', isAuthenticated, todoController.getAllTodosController);
    ```
 
-#### 🌐 Public Routes (No Authentication)
+#### Public Routes (No Authentication)
 
 These routes can be accessed without tokens:
 
@@ -352,44 +352,44 @@ PORT=8081
 ### 1. Middleware Placement
 
 ```typescript
-// ✅ Good: Middleware before route handler
+//  Good: Middleware before route handler
 app.get('/todos', isAuthenticated, todoController.getTodos);
 
-// ❌ Bad: Middleware after route handler (won't work)
+// Bad: Middleware after route handler (won't work)
 app.get('/todos', todoController.getTodos, isAuthenticated);
 ```
 
 ### 2. Selective Protection
 
 ```typescript
-// ✅ Good: Only protect routes that need authentication
+//  Good: Only protect routes that need authentication
 app.get('/todos', isAuthenticated, todoController.getTodos);        // Protected
 app.get('/todos/:id', todoController.getTodoById);                  // Public
 
-// ❌ Bad: Protecting everything unnecessarily
+// Bad: Protecting everything unnecessarily
 app.get('/todos/:id', isAuthenticated, todoController.getTodoById); // May not need protection
 ```
 
 ### 3. Error Handling
 
 ```typescript
-// ✅ Good: Consistent error responses
+//  Good: Consistent error responses
 res.status(401).json({ message: 'Unauthorized' });
 
-// ❌ Bad: Inconsistent or revealing error messages
+//  Bad: Inconsistent or revealing error messages
 res.status(401).json({ error: 'JWT verification failed: invalid signature' });
 ```
 
 ### 4. Token Validation
 
 ```typescript
-// ✅ Good: Comprehensive validation
+//  Good: Comprehensive validation
 if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ message: 'Unauthorized' });
     return;
 }
 
-// ❌ Bad: Incomplete validation
+//  Bad: Incomplete validation
 if (!authHeader) {
     res.status(401).json({ message: 'Unauthorized' });
     return;

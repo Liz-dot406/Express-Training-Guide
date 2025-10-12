@@ -10,13 +10,14 @@ This project implements a clean, JWT-based authentication system with role manag
 
 Think of roles like job positions in a company:
 
-| Role        | Permissions                           | Real-World Example       |
-| ----------- | ------------------------------------- | ------------------------ |
-| **Admin**   | Full access - create, read, update, delete | Manager can access all files |
-| **User**    | Limited access - typically read/create only | Employee can view own tasks |
-| **Both**    | Flexible access - allows admin OR user | Public documents anyone can read |
+| Role            | Permissions                                 | Real-World Example               |
+| --------------- | ------------------------------------------- | -------------------------------- |
+| **Admin** | Full access - create, read, update, delete  | Manager can access all files     |
+| **User**  | Limited access - typically read/create only | Employee can view own tasks      |
+| **Both**  | Flexible access - allows admin OR user      | Public documents anyone can read |
 
 This approach makes your API:
+
 - **Secure** (users only access what they're allowed to)
 - **Scalable** (easy to add new roles)
 - **Maintainable** (role changes don't require code changes)
@@ -56,6 +57,7 @@ INSERT INTO Users (first_name, last_name, email, phone_number, password, role) V
 ```
 
 **Key Points:**
+
 - `role VARCHAR(20) DEFAULT 'user'` - Every new user gets 'user' role by default
 - We store roles as simple strings ('admin', 'user')
 - Alice is an admin, Brian and Carol are regular users
@@ -72,7 +74,7 @@ export const loginUser = async (email: string, password: string) => {
     if (!user) {
         throw new Error('User not found');
     }
-    
+  
     // Verify password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -84,7 +86,7 @@ export const loginUser = async (email: string, password: string) => {
         sub: user.userid,
         first_name: user.first_name,
         last_name: user.last_name,
-        role: user.role,  // 👈 This is crucial for role-based auth
+        role: user.role,  //  This is crucial for role-based auth
         exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour expiration
     }
 
@@ -109,6 +111,7 @@ export const loginUser = async (email: string, password: string) => {
 ```
 
 **What happens here:**
+
 1. User provides email/password
 2. We verify credentials against the database
 3. We create a JWT payload that **includes the user's role**
@@ -144,7 +147,7 @@ export const checkRoles = (requiredRole: "admin" | "user" | "both") => {
         try {
             // Step 3: Verify and decode the JWT token
             const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-            
+  
             // Step 4: Attach user info to request for later use
             (req as any).user = decoded;
 
@@ -157,25 +160,25 @@ export const checkRoles = (requiredRole: "admin" | "user" | "both") => {
                 if (requiredRole === "both") {
                     // Allow both admin and user roles
                     if (decoded.role === "admin" || decoded.role === "user") {
-                        next(); // ✅ Access granted
+                        next(); // Access granted
                         return;
                     }
                 } else if (decoded.role === requiredRole) {
                     // Role matches exactly what's required
-                    next(); // ✅ Access granted
+                    next(); // Access granted
                     return;
                 }
-                
-                // ❌ Wrong role
+  
+                // Wrong role
                 res.status(401).json({ message: "Unauthorized" });
                 return;
             } else {
-                // ❌ Token doesn't have proper role information
+                // Token doesn't have proper role information
                 res.status(401).json({ message: "Invalid Token Payload" });
                 return;
             }
         } catch (error) {
-            // ❌ Token is invalid or expired
+            // Token is invalid or expired
             res.status(401).json({ message: 'Invalid Token' });
             return;
         }
@@ -189,6 +192,7 @@ export const adminUser = checkRoles("both");    // Both admins and users allowed
 ```
 
 **How it works:**
+
 1. **Extract Token**: Gets JWT from `Authorization: Bearer <token>` header
 2. **Verify Token**: Confirms token is valid and not expired
 3. **Check Role**: Compares user's role with what the route requires
@@ -207,16 +211,16 @@ import { adminOnly, userOnly, adminUser } from "../middleware/bearAuth";
 const todoRoutes = (app: Express) => {
     // Mixed access - both admins and users can view todos
     app.get('/todos', adminUser, todoController.getTodos);
-    
+  
     // Public access - anyone can view individual todo (no middleware)
     app.get('/todos/:id', todoController.getTodoById);
-    
+  
     // Admin only - only admins can create todos
     app.post('/todos', adminOnly, todoController.createTodo);
-    
+  
     // Mixed access - both roles can update (business logic in controller can add more restrictions)
     app.put('/todos/:id', adminUser, todoController.updateTodo);
-    
+  
     // Admin only - only admins can delete todos
     app.delete('/todos/:id', adminOnly, todoController.deleteTodo);
 
@@ -233,6 +237,7 @@ export default todoRoutes;
 Let's walk through a complete example:
 
 ### 1. User Login (Getting the Token)
+
 ```bash
 POST /login
 {
@@ -253,8 +258,9 @@ POST /login
 ```
 
 ### 2. Making Protected Requests
+
 ```bash
-# ✅ Admin accessing admin-only route (SUCCESS)
+# Admin accessing admin-only route (SUCCESS)
 POST /todos
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 {
@@ -262,12 +268,12 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   "description": "Monthly review"
 }
 
-# ❌ Regular user trying admin-only route (FAILS)
+# Regular user trying admin-only route (FAILS)
 POST /todos  
 Authorization: Bearer <user-token>
 # Response: 401 Unauthorized
 
-# ✅ Both admin and user accessing mixed route (SUCCESS)
+# Both admin and user accessing mixed route (SUCCESS)
 GET /todos
 Authorization: Bearer <any-valid-token>
 ```
@@ -283,6 +289,7 @@ Authorization: Bearer <any-valid-token>
 ## Common Patterns
 
 ### Route Protection Levels
+
 ```ts
 // No protection - public access
 app.get('/public', controller.publicEndpoint);
@@ -296,6 +303,7 @@ app.get('/user-only', userOnly, controller.userEndpoint);
 ```
 
 ### Error Responses
+
 - `401 Unauthorized` - Missing or invalid token
 - `403 Forbidden` - Valid token but insufficient permissions (wrong role)
 - `200 OK` - Valid token and correct role
