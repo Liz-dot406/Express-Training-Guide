@@ -74,6 +74,7 @@ export const createTodo = async (req: Request, res: Response) => {
 export const updateTodo = async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
     const todo = req.body;
+    console.log("controller", req.body);
     //badrequest if id is not a number
     if (isNaN(id)) {
         return res.status(400).json({ message: 'Invalid todo id' });

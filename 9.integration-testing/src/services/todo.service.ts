@@ -17,7 +17,8 @@ export const deleteTodo = async (id: number) => {
 
 //export const updateTodo = async (id: number, todo: any) => await todoRepositories.updateTodo(id, todo);
 export const updateTodo = async (id: number, todo: UpdateTodo) => {
-    const existingTodo = await todoRepositories.getTodoById(id);    
+    console.log("todo", todo.todo_name);
+    const existingTodo = await todoRepositories.getTodoById(id);
     if (!existingTodo) {
         throw new Error('Todo not found');
     }

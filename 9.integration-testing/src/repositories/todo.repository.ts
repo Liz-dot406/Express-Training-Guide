@@ -46,10 +46,10 @@ export const updateTodo = async (id: number, todo: UpdateTodo) => {
     await pool
         .request()
         .input('id', id)
-        .input('todo_name', todo.todo_name)
-        .input('description', todo.description)
-        .input('due_date', todo.due_date)
-        .input('user_id', todo.user_id)
+        .input('todo_name', todo.todo_name ?? '')
+        .input('description', todo.description ?? '')
+        .input('due_date', todo.due_date ?? null)
+        .input('user_id', todo.user_id ?? null)
         .query('UPDATE Todos SET todo_name = @todo_name, description = @description, due_date = @due_date, user_id = @user_id WHERE todoid = @id');
     return { message: 'Todo updated successfully' };
 }

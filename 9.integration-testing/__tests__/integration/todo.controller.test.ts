@@ -3,126 +3,156 @@ import app from "../../src/index";
 import { getPool } from "../../src/db/config";
 
 let pool: any;
-let seededUserId: number;
+let testUserId: number;
+let createdTodoId: number;
+
+// ✅ Safe helper to insert todos
+const insertTodo = async (name: string, userId: number) => {
+  const result = await pool
+    .request()
+    .input("todo_name", name)
+    .input("description", "Test description")
+    .input("due_date", new Date())
+    .input("user_id", userId)
+    .query(`
+      INSERT INTO Todos (todo_name, description, due_date, user_id)
+      OUTPUT INSERTED.todoid
+      VALUES (@todo_name, @description, @due_date, @user_id);
+    `);
+  return result.recordset[0].todoid;
+};
 
 beforeAll(async () => {
-    pool = await getPool();
+  pool = await getPool();
 
-    // seed a user to associate todos with
-    const insertedUser = await pool
-        .request()
-        .query(
-            "INSERT INTO Users (first_name, last_name, email, phone_number, password, role) OUTPUT INSERTED.userid VALUES ('Todo', 'User', 'todouser@testmail.com', '0700000001', 'pass', 'user')"
-        );
-    seededUserId = insertedUser.recordset[0].userid;
+  // ✅ Create a unique user for each run (prevents duplicate key)
+  const uniqueEmail = `todo_integration_${Date.now()}@testmail.com`;
 
-    // seed a todo for lookup/update/delete tests
-    await pool
-        .request()
-        .input("todo_name", "seed-testtodo-1")
-        .input("description", "seed todo")
-        .input("due_date", null)
-        .input("user_id", seededUserId)
-        .query(
-            "INSERT INTO Todos (todo_name, description, due_date, user_id) VALUES (@todo_name, @description, @due_date, @user_id)"
-        );
+  const userInsert = await pool
+    .request()
+    .input("first_name", "Todo")
+    .input("last_name", "Tester")
+    .input("email", uniqueEmail)
+    .input("phone_number", "0711111111")
+    .input("password", "pass123")
+    .input("role", "user")
+    .query(`
+      INSERT INTO Users (first_name, last_name, email, phone_number, password, role)
+      OUTPUT INSERTED.userid
+      VALUES (@first_name, @last_name, @email, @phone_number, @password, @role);
+    `);
+
+  testUserId = userInsert.recordset[0].userid;
 });
 
 afterAll(async () => {
-    // clean up todos and users created during tests
-    await pool.request().query("DELETE FROM Todos WHERE todo_name LIKE '%testtodo%'");
-    await pool.request().query("DELETE FROM Users WHERE email LIKE '%@testmail.com'");
-    await pool.close();
+  // ✅ Clean up all data safely, respecting FK constraints
+  await pool
+    .request()
+    .input("user_id", testUserId)
+    .query("DELETE FROM Todos WHERE user_id = @user_id");
+
+  await pool
+    .request()
+    .input("user_id", testUserId)
+    .query("DELETE FROM Users WHERE userid = @user_id");
+
+  await pool.close();
 });
 
-describe("Todo API Integration Test Suite", () => {
-    it("should fetch all todos successfully", async () => {
-        const res = await request(app).get("/todos");
-        expect(res.statusCode).toBe(200);
-        expect(Array.isArray(res.body)).toBe(true);
-    });
+describe("Todo API Integration Tests (Safe + Unique User)", () => {
+  it("should create a new todo successfully", async () => {
+    const todoData = {
+      todo_name: "create-testtodo",
+      description: "integration test",
+      due_date: "2025-12-31",
+      user_id: testUserId,
+    };
 
-    it("should create a new todo successfully", async () => {
-        const newTodo = {
-            todo_name: "create-testtodo-1",
-            description: "integration test todo",
-            due_date: null,
-            user_id: seededUserId,
-        };
+    const res = await request(app)
+      .post("/todos")
+      .set("Content-Type", "application/json")
+      .send(todoData);
 
-        const res = await request(app).post("/todos").send(newTodo);
-        expect([200, 201]).toContain(res.status); // router may return 200 or 201 depending on implementation
-        // Either check for message or created object; be permissive but ensure success
-        expect(res.body).toBeDefined();
-    });
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty("message");
+    createdTodoId = res.body.todo?.todoid || res.body.id || 0;
+  });
 
-    it("should fail to create a todo with missing fields", async () => {
-        const res = await request(app).post("/todos").send({
-            todo_name: "incomplete-testtodo",
-        });
-        expect(res.status).toBeGreaterThanOrEqual(400);
-        expect(res.body).toHaveProperty("error");
-    });
+  it("should fetch all todos successfully", async () => {
+    const res = await request(app).get("/todos");
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
 
-    it("should return todo by ID", async () => {
-        // insert and get inserted id
-        const inserted = await pool
-            .request()
-            .query(
-                "INSERT INTO Todos (todo_name, description, due_date, user_id) OUTPUT INSERTED.todoid VALUES ('getbyid-testtodo', 'by id', NULL, " +
-                seededUserId +
-                ")"
-            );
-        const todoId = inserted.recordset[0].todoid;
+  it("should fetch a todo by ID", async () => {
+    const todoId = await insertTodo("getbyid-testtodo", testUserId);
+    const res = await request(app).get(`/todos/${todoId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.todo_name || res.body[0]?.todo_name).toMatch(/getbyid-testtodo/i);
+  });
 
-        const res = await request(app).get(`/todos/${todoId}`);
-        expect(res.status).toBe(200);
-        expect(res.body).toBeDefined();
-        expect(res.body.todo_name ?? res.body[0]?.todo_name).toMatch(/getbyid-testtodo/i);
-    });
+  it("should update a todo successfully", async () => {
+    const todoId = await insertTodo("update-testtodo", testUserId);
+    const res = await request(app)
+      .put(`/todos/${todoId}`)
+      .set("Content-Type", "application/json")
+      .send({
+        todo_name: "Updated Todo",
+        description: "Updated description",
+        due_date: "2025-12-31",
+        user_id: testUserId,
+      });
 
-    it("should return 404 if todo not found", async () => {
-        const res = await request(app).get("/todos/99999999");
-        expect([404, 500]).toContain(res.status); // depending on service, missing row may be 404; allow 500 if DB constraints differ
-    });
+    expect(res.status).toBe(200);
+    expect(res.body.message || res.body.msg).toMatch(/updated successfully/i);
+  });
 
-    it("should return 400 when updating with invalid ID", async () => {
-        const res = await request(app).put("/todos/abc").send({
-            todo_name: "bad",
-        });
-        expect(res.status).toBe(400);
-        expect(res.body.message ?? res.body.error).toMatch(/invalid/i);
-    });
+  it("should delete a todo successfully", async () => {
+    const todoId = await insertTodo("delete-testtodo", testUserId);
+    const res = await request(app).delete(`/todos/${todoId}`);
+    expect(res.status).toBe(204);
+  });
 
-    it("should return 404 when updating non-existent todo", async () => {
-        const res = await request(app).put("/todos/999999").send({
-            todo_name: "ghost",
-        });
-        expect([404, 500]).toContain(res.status);
-    });
+  // 🚫 Negative Tests
+  it("should return 404 for non-existent todo ID", async () => {
+    const res = await request(app).get("/todos/9999999");
+    expect(res.status).toBe(404);
+  });
 
-    it("should delete a todo successfully", async () => {
-        const inserted = await pool
-            .request()
-            .query(
-                "INSERT INTO Todos (todo_name, description, due_date, user_id) OUTPUT INSERTED.todoid VALUES ('delete-testtodo', 'delete me', NULL, " +
-                seededUserId +
-                ")"
-            );
-        const todoId = inserted.recordset[0].todoid;
+  it("should fail to create a todo with missing fields", async () => {
+    const res = await request(app)
+      .post("/todos")
+      .set("Content-Type", "application/json")
+      .send({ todo_name: "" });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
 
-        const res = await request(app).delete(`/todos/${todoId}`);
-        expect([200, 204]).toContain(res.status);
-    });
+  it("should return 400 when updating with invalid ID", async () => {
+    const res = await request(app)
+      .put("/todos/abc")
+      .set("Content-Type", "application/json")
+      .send({ todo_name: "bad" });
+    expect(res.status).toBe(400);
+    expect(res.body.message || res.body.error).toMatch(/invalid/i);
+  });
 
-    it("should return 400 for invalid todo ID on delete", async () => {
-        const res = await request(app).delete("/todos/abc");
-        expect(res.status).toBe(400);
-        expect(res.body.message ?? res.body.error).toMatch(/invalid/i);
-    });
+  it("should return 404 when updating non-existent todo", async () => {
+    const res = await request(app)
+      .put("/todos/999999")
+      .set("Content-Type", "application/json")
+      .send({ todo_name: "ghost" });
+    expect(res.status).toBe(404);
+  });
 
-    it("should return 404 for non-existent todo on delete", async () => {
-        const res = await request(app).delete("/todos/99999999");
-        expect([404, 500]).toContain(res.status);
-    });
+  it("should return 400 for invalid ID on delete", async () => {
+    const res = await request(app).delete("/todos/abc");
+    expect(res.status).toBe(400);
+    expect(res.body.message || res.body.error).toMatch(/invalid/i);
+  });
+
+  it("should return 404 for non-existent todo on delete", async () => {
+    const res = await request(app).delete("/todos/9999999");
+    expect(res.status).toBe(404);
+  });
 });

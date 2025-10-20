@@ -1,0 +1,14 @@
+GET http://localhost:3000/todos
+
+###
+//update todo
+PUT http://localhost:3000/todos/8
+Content-Type: application/json
+
+{
+    "todoid": 8,
+    "todo_name": "updated-todo",
+    "description": "updated desc",
+    "due_date": "2025-12-31T23:59:59.000Z",
+    "user_id": 1
+}

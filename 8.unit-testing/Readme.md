@@ -1,566 +1,404 @@
-# Email Integration with Nodemailer in Express.js
+# Unit Testing Practices Guide
 
 ## Overview
 
-**Nodemailer** is a powerful and flexible Node.js module for sending emails. It supports various email services and provides a clean API for sending both plain text and HTML emails. In modern web applications, email functionality is essential for user registration, password resets, notifications, and user engagement.
+This guide provides practical unit testing knowledge for developers at all levels. It covers essential testing concepts, Jest mocking strategies, and real-world testing patterns using a Node.js/TypeScript service layer as examples.
 
-This project implements a comprehensive email system using Nodemailer with Gmail SMTP, including email templates, user verification, and various email types throughout the user journey.
+## 1. Core Testing Concepts
 
-### Why Email Integration?
-
-Email functionality serves multiple purposes in web applications:
-
-| Email Type                      | Purpose                         | Real-World Example              |
-| ------------------------------- | ------------------------------- | ------------------------------- |
-| **Welcome Email**         | User onboarding and engagement  | "Welcome to our platform!"      |
-| **Verification Email**    | Account security and validation | "Verify your email address"     |
-| **Success Notifications** | User feedback and confirmation  | "Account verified successfully" |
-| **Password Reset**        | Account recovery and security   | "Reset your password"           |
-
-This approach makes your application:
-
-- **Professional** (users expect email confirmations)
-- **Secure** (email verification prevents fake accounts)
-- **Engaging** (keeps users informed and connected)
-- **Trustworthy** (proper email flow builds user confidence)
-
-## Implementation Flow
-
-```
-1. User registers → Email with verification code sent
-2. User enters code → Account verified + success email sent  
-3. System events occur → Relevant notifications sent
-4. All emails use templates → Consistent branding and format
-```
-
-## 1. Installation and Setup
-
-### Installing Nodemailer
-
-First, install Nodemailer and its TypeScript types using pnpm:
-
-```bash
-# Install nodemailer and its types
-pnpm install nodemailer
-pnpm install @types/nodemailer --save-dev
-```
-
-**Key Points:**
-
-- `nodemailer` - The main package for sending emails
-- `@types/nodemailer` - TypeScript definitions for better development experience
-- We use pnpm as our package manager for this project
-
-### Gmail App Password Setup
-
-To use Gmail as your email service, you need to set up an App Password for security. Regular Gmail passwords won't work with SMTP due to security restrictions.
-
-**Steps to create Gmail App Password:**
-
-1. Visit: [https://support.google.com/mail/answer/185833?hl=en](https://support.google.com/mail/answer/185833?hl=en)
-2. Sign in to your Google Account
-3. Go to Security settings
-4. Enable 2-Factor Authentication **(required for App Passwords)**
-5. Generate an App Password specifically for this application
-6. Copy the 16-character password (it will look like: `abcd efgh ijkl mnop`)
-
-**Important Security Notes:**
-
-- Never use your regular Gmail password in code
-- App passwords are more secure and can be revoked individually
-- Keep your app password secret and never commit it to version control
-
-### Environment Variables Configuration
-
-Create or update your `.env` file with the following email configuration:
-
-```env
-# Mail configuration
-SMTP_HOST=smtp.gmail.com
-MAIL_USER=your-email@gmail.com
-MAIL_PASSWORD=your-16-character-app-password
-```
-
-**Environment Variables Explained:**
-
-- `SMTP_HOST` - Gmail's SMTP server address
-- `MAIL_USER` - Your Gmail address that will send emails
-- `MAIL_PASSWORD` - The 16-character App Password (**NOT your regular Gmail password**)
-
-## 2. Project Structure - Adding Mailer Functionality
-
-In our Express.js project, we organize email functionality in a dedicated `mailer` folder within the `src` directory:
-
-![nodemailer-structure](image/Readme/nodemailer-structure.png)
-
-```text
-src/
-  mailer/
-    mailer.ts          # Core email sending functionality
-    emailTemplates.ts  # Reusable email templates
-```
-
-This organization keeps email-related code modular and maintainable, following the layered architecture pattern used throughout the project.
-
-## 3. Mailer Configuration - Setting Up the Email Service
-
-Create the main email service file `src/mailer/mailer.ts`:
+### Test Structure (AAA Pattern)
 
 ```typescript
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
-
-dotenv.config();
-
-export const sendEmail = async (
-    to: string,
-    subject: string,
-    html?: string
-): Promise<string> => {
-    try {
-        const transporter = nodemailer.createTransporter({
-            host: process.env.SMTP_HOST,  // Gmail SMTP server
-            port: 465,  // SMTP port for Gmail
-            service: 'gmail',  // Gmail service
-            secure: true, // Use SSL for secure connection
-            auth: {
-                user: process.env.MAIL_USER,
-                pass: process.env.MAIL_PASSWORD
-            }
-        });
-
-        const mailOptions: nodemailer.SendMailOptions = {
-            from: process.env.MAIL_USER,
-            to,
-            subject,
-            html
-        };
-
-        const mailRes = await transporter.sendMail(mailOptions);
-        console.log("Message sent:", mailRes);
-
-        if (mailRes.accepted.length > 0) return 'Email sent successfully';
-        if (mailRes.rejected.length > 0) return 'Email not sent';
-        return 'Email server not responding';
-    } catch (error: any) {
-        console.log("Error sending email:", error.message);
-        return JSON.stringify(error.message);
-    }
-};
-```
-
-**Key Components Explained:**
-
-1. **Transporter Configuration**:
-
-   - `host: smtp.gmail.com` - Gmail's SMTP server
-   - `port: 465` - Secure SMTP port for Gmail
-   - `secure: true` - Uses SSL encryption for security
-   - `auth` - Your Gmail credentials (from environment variables)
-2. **Mail Options**:
-
-   - `from` - Sender's email address
-   - `to` - Recipient's email address
-   - `subject` - Email subject line
-   - `html` - HTML content of the email
-3. **Error Handling**:
-
-   - Returns success/failure status
-   - Logs detailed error information
-   - Handles different response scenarios
-
-## 4. Basic Email Sending - Welcome Email Implementation
-
-Now let's integrate email sending into our user registration process. In the user service (`src/services/user.service.ts`), we add email functionality to the `createUser` function:
-
-```typescript
-import { sendEmail } from '../mailer/mailer';
-
-export const createUser = async (user: NewUser) => {
-    // 1. Hash the password before saving
-    if (user.password) {
-        user.password = await bcrypt.hash(user.password, 10);
-    }
-
-    // 2. Save the user to database
-    const result = await userRepositories.createUser(user);
-
-    // 3. Send welcome email to the user
-    try {
-        await sendEmail(
-            user.email,
-            'Welcome to Todo App By Kemboi',
-            `<div>
-            <h2>Welcome ${user.first_name}!</h2>
-            <p>Thank you for registering with our Todo App. We're excited to have you on board!</p>
-            <P>You can now log in and start managing your tasks efficiently.</P>
-            </div>`,
-        );
-    } catch (error) {
-        console.error('Error sending welcome email:', error);
-    }
-
-    return result;
-}
-```
-
-**Implementation Flow:**
-
-1. **User Registration Process**:
-
-   - Hash password for security
-   - Save user data to database
-   - Send welcome email immediately after successful registration
-2. **Email Content Structure**:
-
-   - Personalized greeting using `${user.first_name}`
-   - Clear welcome message
-   - Brief instructions or next steps
-   - HTML formatting for better presentation
-3. **Error Handling**:
-
-   - Email sending is wrapped in try-catch
-   - Registration succeeds even if email fails
-   - Errors are logged for debugging purposes
-
-**Important Notes:**
-
-- Email sending doesn't block user registration
-- If email fails, the user account is still created
-- This prevents email issues from breaking the registration flow
-
-## 5. Email Template System - Making Emails Manageable
-
-As your application grows, having inline HTML in your service files becomes difficult to maintain. Let's create a dedicated email template system in `src/mailer/emailTemplates.ts`:
-
-```typescript
-export const emailTemplate = {
-    welcome: (firstName: string) => `
-    <div>
-        <h2>Welcome ${firstName}!</h2>
-        <p>Thank you for registering with our Todo App. We're excited to have you on board!</p>
-        <P>You can now log in and start managing your tasks efficiently.</P>
-    </div>
-    `,
+it("should perform specific action", async () => {
+    // ARRANGE - Setup test data and mocks
+    const mockData = { id: 1, name: "Test User" };
   
-    verify: (firstName: string, code: string) => `
-    <div style="font-family: Arial, sans-serif; color: #333;">
-        <h2>Hello ${firstName}!</h2>
-        <p>Your verification code is: <strong>${code}</strong></p>
-        <p>Please enter this code in the app to verify your email address.</p>
-        <br />
-        <p> Thank you,<br/>The Todo App Team</p>
-    </div>
-    `,
+    // ACT - Execute the function under test
+    const result = await serviceFunction(mockData);
   
-    verifiedSuccess: (firstName: string) => `
-    <div style="font-family: Arial, sans-serif; color: #333;">
-      <h2>Hello ${firstName},</h2>
-      <p> Your account has been verified successfully!</p>
-      <p>You can now log in and start using all features.</p>
-      <br/>
-      <p> Thank you,<br/>The Todo App Team</p>
-    </div>
-    `
-};
+    // ASSERT - Verify expectations
+    expect(result).toEqual(expectedOutput);
+});
 ```
 
-### Refactoring to Use Email Templates
+### Test Isolation Principles
 
-Now we can update our user service to use these templates instead of inline HTML:
+- Each test should be independent
+- Use `afterEach()` to clean up mocks
+- Avoid shared state between tests
 
 ```typescript
-import { emailTemplate } from '../mailer/emailTemplates';
-
-export const createUser = async (user: NewUser) => {
-    // 1. Hash password and save user (same as before)
-    if (user.password) {
-        user.password = await bcrypt.hash(user.password, 10);
-    }
-    const result = await userRepositories.createUser(user);
-
-    // 2. Send welcome email using template
-    await sendEmail(
-        user.email,
-        'Welcome to Todo App By Kemboi',
-        emailTemplate.welcome(user.first_name),
-    );
-
-    return result;
-}
+describe("Service Test Suite", () => {
+    afterEach(() => {
+        jest.clearAllMocks(); // Clean up all mocks after each test
+    });
+});
 ```
 
-**Benefits of Email Templates:**
+## 2. Jest Mocking Fundamentals
 
-1. **Maintainability**: All email content in one organized file
-2. **Consistency**: Uniform styling and branding across all emails
-3. **Reusability**: Templates can be used in multiple places
-4. **Separation of Concerns**: Business logic separate from presentation
-5. **Easy Updates**: Change email design without touching service code
+### Module Mocking
 
-**Template Structure:**
-
-- Each template is a function that accepts dynamic parameters
-- Returns HTML string with proper styling
-- Includes consistent branding and formatting
-- Can be easily extended with new email types
-
-## 6. Email Verification System - Enhanced Security
-
-To add email verification functionality, we need to extend our database schema and implement a verification workflow.
-
-### Database Schema Updates
-
-Add verification fields to the Users table:
-
-```sql
--- Add verification columns to existing Users table
-ALTER TABLE Users
-ADD verification_code VARCHAR(10),
-    is_verified BIT DEFAULT 0;
-```
-
-**Schema Changes Explained:**
-
-- `verification_code VARCHAR(10)` - Stores the 6-digit verification code
-- `is_verified BIT DEFAULT 0` - Boolean flag (0 = not verified, 1 = verified)
-- New users start as unverified (`is_verified = 0`)
-
-### Complete Verification Workflow
-
-The verification system works in three main steps:
-
-1. **Registration**: Send verification code via email
-2. **Verification**: User enters code to verify their account
-3. **Confirmation**: Send success email when verified
-
-```sql
--- Updated Users table structure
-CREATE TABLE Users (
-    userid INT IDENTITY(1,1) PRIMARY KEY,
-    first_name VARCHAR(40) NOT NULL,
-    last_name VARCHAR(40) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    phone_number VARCHAR(15),
-    password VARCHAR(MAX) NOT NULL,
-    role VARCHAR(20) DEFAULT 'user',
-    verification_code VARCHAR(10),
-    is_verified BIT DEFAULT 0
-);
-```
-
-**Security Benefits:**
-
-- Prevents registration with fake email addresses
-- Ensures users have access to their registered email
-- Adds an extra layer of account security
-- Helps prevent spam and automated registrations
-
-## 7. Implementation Across Application Layers
-
-### Repository Layer - Database Operations
-
-Update `src/repositories/user.repository.ts` with verification functions:
+Mock entire modules at the top of your test file:
 
 ```typescript
-// Set verification code for a user
-export const setVerificationCode = async (email: string, code: string) => {
-    const pool = await getPool();
-    await pool
-        .request()
-        .input('email', email)
-        .input('code', code)
-        .query('UPDATE Users SET verification_code = @code, is_verified = 0 WHERE email = @email');
-    return { message: 'Verification code saved' };
-}
-
-// Verify user by setting is_verified to true
-export const verifyUser = async (email: string) => {
-    const pool = await getPool();
-    await pool
-        .request()
-        .input('email', email)
-        .query('UPDATE Users SET is_verified = 1, verification_code = NULL WHERE email = @email');
-    return { message: 'User verified successfully' };
-};
-
-// Get user by email - used for verification lookup
-export const getUserByEmail = async (email: string): Promise<User | null> => {
-    const pool = await getPool();
-    const result = await pool
-        .request()
-        .input('email', email)
-        .query('SELECT * FROM Users WHERE email = @email');
-    return result.recordset[0] || null;
-}
+// Mock external dependencies
+jest.mock("../src/repositories/user.repository");
+jest.mock("bcrypt");
+jest.mock("jsonwebtoken");
+jest.mock("../src/mailer/mailer");
 ```
 
-### Service Layer - Business Logic
-
-Update `src/services/user.service.ts` with complete verification workflow:
+### Function Mocking Types
 
 ```typescript
-export const createUser = async (user: NewUser) => {
-    // 1. Hash password
-    if (user.password) {
-        user.password = await bcrypt.hash(user.password, 10);
-    }
+// Mock with return value
+(mockFunction as jest.Mock).mockResolvedValue(expectedResult);
 
-    // 2. Generate 6-digit verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+// Mock with implementation
+(mockFunction as jest.Mock).mockImplementation(() => "custom logic");
+
+// Mock to throw error
+(mockFunction as jest.Mock).mockRejectedValue(new Error("Test error"));
+```
+
+### Mock Assertions
+
+```typescript
+// Verify function was called
+expect(mockFunction).toHaveBeenCalled();
+
+// Verify call count
+expect(mockFunction).toHaveBeenCalledTimes(1);
+
+// Verify call arguments
+expect(mockFunction).toHaveBeenCalledWith("expected", "arguments");
+```
+
+## 3. Testing Service Layer
+
+### Testing CRUD Operations
+
+#### Read Operations (List/Get)
+
+```typescript
+it("should return a list of users", async () => {
+    // ARRANGE
+    const mockUsers = [
+        { userid: 1, first_name: "Alice", email: "alice@gmail.com" },
+        { userid: 2, first_name: "Brian", email: "brian@gmail.com" }
+    ];
+    (userRepositories.getUsers as jest.Mock).mockResolvedValue(mockUsers);
+
+    // ACT
+    const users = await userServices.listUsers();
+
+    // ASSERT
+    expect(users).toEqual(mockUsers);
+    expect(userRepositories.getUsers).toHaveBeenCalledTimes(1);
+});
+```
+
+#### Create Operations
+
+```typescript
+it("should create user with hashed password and send verification email", async () => {
+    // ARRANGE
+    const mockUser = {
+        first_name: "John",
+        email: "john@gmail.com",
+        password: "password123"
+    };
   
-    // 3. Save user to database
-    const result = await userRepositories.createUser(user);
-  
-    // 4. Save verification code
-    await userRepositories.setVerificationCode(user.email, verificationCode);
+    (bcrypt.hash as jest.Mock).mockResolvedValue("hashedPassword");
+    (userRepositories.createUser as jest.Mock).mockResolvedValue({});
+    (userRepositories.setVerificationCode as jest.Mock).mockResolvedValue({});
+    (sendEmail as jest.Mock).mockResolvedValue(true);
 
-    // 5. Send verification email (not welcome email)
-    await sendEmail(
-        user.email,
-        'Verify your email for Todo App',
-        emailTemplate.verify(user.first_name, verificationCode)
-    );
+    // ACT
+    const result = await userServices.createUser(mockUser);
 
-    return { message: 'User created successfully. Verification code sent to email' };
-}
-
-// Verify user email with code
-export const verifyUser = async (email: string, code: string) => {
-    const user = await userRepositories.getUserByEmail(email);
-    if (!user) {
-        throw new Error('User not found');
-    }
-
-    if (user.verification_code !== code) {
-        throw new Error('Invalid verification code');
-    }
-
-    // Mark user as verified
-    await userRepositories.verifyUser(email);
-
-    // Send success notification
-    await sendEmail(
-        user.email,
-        'Your email has been verified - Todo App',
-        emailTemplate.verifiedSuccess(user.first_name)
-    );
-
-    return { message: 'User verified successfully' };
-}
+    // ASSERT
+    expect(bcrypt.hash).toHaveBeenCalledWith("password123", 10);
+    expect(userRepositories.createUser).toHaveBeenCalled();
+    expect(sendEmail).toHaveBeenCalled();
+    expect(result.message).toContain("user created successfully");
+});
 ```
 
-### Controller Layer - Request Handling
-
-Add verification controller in `src/controllers/user.controllers.ts`:
+#### Update Operations
 
 ```typescript
-export const verifyUser = async (req: Request, res: Response) => {
-    try {
-        const { email, code } = req.body;
-    
-        if (!email || !code) {
-            return res.status(400).json({ message: 'Email and verification code are required' });
-        }
+it("should update user with hashed password", async () => {
+    // ARRANGE
+    const userId = 1;
+    const updateData = { password: "newpassword123" };
+  
+    (userRepositories.getUserById as jest.Mock).mockResolvedValue({ userid: 1 });
+    (bcrypt.hash as jest.Mock).mockResolvedValue("newHashedPassword");
+    (userRepositories.updateUser as jest.Mock).mockResolvedValue({ 
+        message: "User updated successfully" 
+    });
 
-        const result = await userService.verifyUser(email, code);
-        res.status(200).json(result);
-    } catch (error: any) {
-        res.status(400).json({ message: error.message });
-    }
-};
+    // ACT
+    const result = await userServices.updateUser(userId, updateData);
+
+    // ASSERT
+    expect(bcrypt.hash).toHaveBeenCalledWith("newpassword123", 10);
+    expect(userRepositories.updateUser).toHaveBeenCalledWith(userId, updateData);
+    expect(result.message).toEqual("User updated successfully");
+});
 ```
 
-### Routes Layer - API Endpoints
-
-Add verification route in `src/router/user.routes.ts`:
+#### Delete Operations
 
 ```typescript
-import * as userController from "../controllers/user.controllers";
+it("should delete user if exists", async () => {
+    // ARRANGE
+    const userId = 1;
+    (userRepositories.getUserById as jest.Mock).mockResolvedValue({ userid: 1 });
+    (userRepositories.deleteUser as jest.Mock).mockResolvedValue({ 
+        message: "User deleted successfully" 
+    });
 
-const userRoutes = (app: Express) => {
-    // Existing routes
-    app.post("/users", userController.createUser);
-    app.post("/login", userController.loginUser);
+    // ACT
+    const result = await userServices.deleteUser(userId);
+
+    // ASSERT
+    expect(userRepositories.getUserById).toHaveBeenCalledWith(userId);
+    expect(userRepositories.deleteUser).toHaveBeenCalledWith(userId);
+    expect(result.message).toEqual("User deleted successfully");
+});
+```
+
+## 4. Mocking External Dependencies
+
+### Database Layer Mocking
+
+Mock repository functions to isolate service logic:
+
+```typescript
+// Mock successful database operations
+(userRepositories.createUser as jest.Mock).mockResolvedValue({});
+(userRepositories.getUserById as jest.Mock).mockResolvedValue(mockUser);
+(userRepositories.updateUser as jest.Mock).mockResolvedValue(updatedUser);
+```
+
+### Third-Party Library Mocking
+
+#### Bcrypt Mocking
+
+```typescript
+// Mock password hashing
+(bcrypt.hash as jest.Mock).mockResolvedValue("hashedPassword");
+
+// Mock password comparison
+(bcrypt.compare as jest.Mock).mockResolvedValue(true); // Valid password
+(bcrypt.compare as jest.Mock).mockResolvedValue(false); // Invalid password
+```
+
+#### JWT Mocking
+
+```typescript
+// Mock token generation
+(jwt.sign as jest.Mock).mockReturnValue("mockJwtToken");
+
+// Mock token verification
+(jwt.verify as jest.Mock).mockReturnValue({ userId: 1, email: "test@gmail.com" });
+```
+
+#### Email Service Mocking
+
+```typescript
+// Mock email sending
+(sendEmail as jest.Mock).mockResolvedValue(true);
+
+// Mock email template generation
+(emailTemplate.verify as jest.Mock).mockReturnValue("<p>Verification email</p>");
+(emailTemplate.welcome as jest.Mock).mockReturnValue("<p>Welcome email</p>");
+```
+
+## 5. Testing Async Operations
+
+### Authentication Flow Testing
+
+```typescript
+it("should return token and user info on successful login", async () => {
+    // ARRANGE
+    const mockUser = {
+        userid: 1,
+        first_name: 'John',
+        email: 'john@gmail.com',
+        password: 'hashedPassword'
+    };
   
-    // New verification route
-    app.post("/verify", userController.verifyUser);
-}
+    (userRepositories.getUserByEmail as jest.Mock).mockResolvedValue(mockUser);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    (jwt.sign as jest.Mock).mockReturnValue("mockJwtToken");
+
+    // ACT
+    const result = await userServices.loginUser("john@gmail.com", "password123");
+
+    // ASSERT
+    expect(userRepositories.getUserByEmail).toHaveBeenCalledWith("john@gmail.com");
+    expect(bcrypt.compare).toHaveBeenCalledWith("password123", "hashedPassword");
+    expect(jwt.sign).toHaveBeenCalled();
+    expect(result).toHaveProperty("token", "mockJwtToken");
+    expect(result.user.email).toBe("john@gmail.com");
+});
 ```
 
-**Complete Flow Example:**
+### Email Verification Testing
 
-1. **User Registration**:
+```typescript
+it("should verify user with correct verification code", async () => {
+    // ARRANGE
+    const mockUser = {
+        email: "john@gmail.com",
+        verification_code: "123456",
+        first_name: "John"
+    };
+  
+    (userRepositories.getUserByEmail as jest.Mock).mockResolvedValue(mockUser);
+    (userRepositories.verifyUser as jest.Mock).mockResolvedValue({});
+    (sendEmail as jest.Mock).mockResolvedValue(true);
 
-   ```bash
-   POST /users
-   {
-     "first_name": "John",
-     "last_name": "Doe", 
-     "email": "john@example.com",
-     "password": "mypassword"
-   }
-   # Response: User created, verification code sent to email
-   ```
-2. **Email Verification**:
+    // ACT
+    const result = await userServices.verifyUser("john@gmail.com", "123456");
 
-   ```bash
-   POST /verify
-   {
-     "email": "john@example.com",
-     "code": "123456"
-   }
-   # Response: User verified successfully
-   ```
-3. **Email Timeline**:
-
-   - Registration → Verification code email sent
-   - User enters code → Success confirmation email sent
-   - User can now log in with verified account
-
-## 8. Best Practices and Security Considerations
-
-### Email Security Best Practices
-
-1. **Environment Variables**: Always store email credentials in environment variables, never in code
-2. **App Passwords**: Use Gmail App Passwords instead of regular passwords for enhanced security
-3. **Error Handling**: Don't let email failures break critical user workflows
-4. **Rate Limiting**: Implement rate limiting on email sending to prevent abuse
-5. **Template Validation**: Sanitize user input in email templates to prevent injection attacks
-
-### Code Organization Best Practices
-
-1. **Separation of Concerns**: Keep email logic separate from business logic
-2. **Reusable Templates**: Create modular email templates for consistency
-3. **Async Operations**: Always handle email sending asynchronously
-4. **Logging**: Log email operations for debugging and monitoring
-
-## . Complete Integration Example
-
-Here's how all the pieces work together in a real user journey:
-
-```text
-User Registration Flow with Email Verification:
-
-1. POST /users (User registers)
-   ↓
-2. Hash password + Generate verification code
-   ↓  
-3. Save user to database (is_verified = 0)
-   ↓
-4. Send verification email with 6-digit code
-   ↓
-5. User receives email and enters code
-   ↓
-6. POST /verify (User submits email + code)
-   ↓
-7. Validate code against database
-   ↓
-8. Update user (is_verified = 1, clear verification_code)
-   ↓
-9. Send success confirmation email
-   ↓
-10. User can now log in with verified account
+    // ASSERT
+    expect(userRepositories.getUserByEmail).toHaveBeenCalledWith("john@gmail.com");
+    expect(userRepositories.verifyUser).toHaveBeenCalledWith("john@gmail.com");
+    expect(sendEmail).toHaveBeenCalled();
+    expect(result.message).toBe("User verified successfully");
+});
 ```
 
-This comprehensive email system provides a professional user experience while maintaining security and code maintainability. The layered architecture ensures that email functionality is properly separated and can be easily extended or modified as your application grows.
+## 6. Error Handling Tests
+
+### Testing Invalid Input
+
+```typescript
+it("should throw error for invalid verification code", async () => {
+    // ARRANGE
+    const mockUser = {
+        email: "john@gmail.com",
+        verification_code: "123456"
+    };
+  
+    (userRepositories.getUserByEmail as jest.Mock).mockResolvedValue(mockUser);
+
+    // ACT & ASSERT
+    await expect(userServices.verifyUser("john@gmail.com", "987654"))
+        .rejects
+        .toThrow("Invalid verification code");
+});
+```
+
+### Testing Authentication Failures
+
+```typescript
+it("should throw error for invalid credentials", async () => {
+    // ARRANGE
+    const mockUser = { email: 'john@gmail.com', password: 'hashedPassword' };
+    (userRepositories.getUserByEmail as jest.Mock).mockResolvedValue(mockUser);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+    // ACT & ASSERT
+    await expect(userServices.loginUser("john@gmail.com", "wrongpassword"))
+        .rejects
+        .toThrow("Invalid credentials");
+});
+```
+
+### Testing Missing Resources
+
+```typescript
+it("should throw error when user not found", async () => {
+    // ARRANGE
+    (userRepositories.getUserByEmail as jest.Mock).mockResolvedValue(null);
+
+    // ACT & ASSERT
+    await expect(userServices.verifyUser("nonexistent@gmail.com", "123456"))
+        .rejects
+        .toThrow("User not found");
+});
+```
+
+## 7. Advanced Testing Patterns
+
+### Testing Helper Functions
+
+```typescript
+it("should validate user existence before operations", async () => {
+    // ARRANGE
+    const nonExistentUserId = 999;
+    (userRepositories.getUserById as jest.Mock).mockResolvedValue(null);
+
+    // ACT & ASSERT
+    await expect(userServices.updateUser(nonExistentUserId, {}))
+        .rejects
+        .toThrow("User not found");
+      
+    await expect(userServices.deleteUser(nonExistentUserId))
+        .rejects
+        .toThrow("User not found");
+});
+```
+
+## 8. Best Practices
+
+### Mock Management
+
+```typescript
+// Clear mocks after each test
+afterEach(() => {
+    jest.clearAllMocks();
+});
+
+// Reset mocks before each test (if needed)
+beforeEach(() => {
+    jest.resetAllMocks();
+});
+```
+
+### Testing Edge Cases
+
+```typescript
+describe("Edge Cases", () => {
+    it("should handle empty password gracefully", async () => {
+        const userWithoutPassword = { email: "test@gmail.com" };
+        // Test that password hashing is skipped
+    });
+  
+    it("should handle email service failures", async () => {
+        (sendEmail as jest.Mock).mockRejectedValue(new Error("Email service down"));
+        // Test that user creation still succeeds
+    });
+});
+```
+
+### Mock Verification Patterns
+
+```typescript
+// Verify specific interactions
+expect(mockFunction).toHaveBeenCalledWith(expectedArg1, expectedArg2);
+
+// Verify call order
+expect(mockFunction1).toHaveBeenCalledBefore(mockFunction2 as jest.Mock);
+
+// Verify no unexpected calls
+expect(mockFunction).not.toHaveBeenCalled();
+```
+
+## Key Takeaways
+
+1. **Mock External Dependencies**: Isolate your service logic by mocking databases, APIs, and third-party libraries
+2. **Test Business Logic**: Focus on testing your service's behavior, not external dependencies
+3. **Use Descriptive Names**: Make tests self-documenting with clear, descriptive test names
+4. **Test Error Conditions**: Ensure error handling works as expected
+5. **Keep Tests Independent**: Each test should be able to run in isolation
+6. **Mock Cleanup**: Always clean up mocks between tests to prevent interference
+7. **Test Real Scenarios**: Write tests that reflect actual usage patterns
+
+Remember: Good unit tests catch bugs early, document expected behavior, and give confidence when refactoring code.

@@ -12,7 +12,6 @@ const todoRoutes = (app: Express) => {
     //api to all practice
     app.get('/alltodos', todoController.getAllTodosController);
     app.post('/addtodo', todoController.AddTodoController);
-
 }
 
 export default todoRoutes;
