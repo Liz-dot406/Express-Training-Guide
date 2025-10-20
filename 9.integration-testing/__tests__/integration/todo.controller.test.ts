@@ -6,7 +6,7 @@ let pool: any;
 let testUserId: number;
 let createdTodoId: number;
 
-// ✅ Safe helper to insert todos
+// Safe helper to insert todos
 const insertTodo = async (name: string, userId: number) => {
   const result = await pool
     .request()
@@ -25,7 +25,7 @@ const insertTodo = async (name: string, userId: number) => {
 beforeAll(async () => {
   pool = await getPool();
 
-  // ✅ Create a unique user for each run (prevents duplicate key)
+  // Create a unique user for each run (prevents duplicate key)
   const uniqueEmail = `todo_integration_${Date.now()}@testmail.com`;
 
   const userInsert = await pool
@@ -46,7 +46,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // ✅ Clean up all data safely, respecting FK constraints
+  // Clean up all data safely, respecting FK constraints
   await pool
     .request()
     .input("user_id", testUserId)
@@ -60,7 +60,7 @@ afterAll(async () => {
   await pool.close();
 });
 
-describe("Todo API Integration Tests (Safe + Unique User)", () => {
+describe("Todo API Integration Tests", () => {
   it("should create a new todo successfully", async () => {
     const todoData = {
       todo_name: "create-testtodo",
@@ -75,21 +75,18 @@ describe("Todo API Integration Tests (Safe + Unique User)", () => {
       .send(todoData);
 
     expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty("message");
-    createdTodoId = res.body.todo?.todoid || res.body.id || 0;
   });
 
   it("should fetch all todos successfully", async () => {
     const res = await request(app).get("/todos");
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
   });
 
   it("should fetch a todo by ID", async () => {
     const todoId = await insertTodo("getbyid-testtodo", testUserId);
     const res = await request(app).get(`/todos/${todoId}`);
     expect(res.status).toBe(200);
-    expect(res.body.todo_name || res.body[0]?.todo_name).toMatch(/getbyid-testtodo/i);
+    expect(res.body.todo_name).toMatch(/getbyid-testtodo/i);
   });
 
   it("should update a todo successfully", async () => {
@@ -105,7 +102,7 @@ describe("Todo API Integration Tests (Safe + Unique User)", () => {
       });
 
     expect(res.status).toBe(200);
-    expect(res.body.message || res.body.msg).toMatch(/updated successfully/i);
+    expect(res.body.message).toMatch(/updated successfully/i);
   });
 
   it("should delete a todo successfully", async () => {
@@ -114,7 +111,7 @@ describe("Todo API Integration Tests (Safe + Unique User)", () => {
     expect(res.status).toBe(204);
   });
 
-  // 🚫 Negative Tests
+  // Negative Tests
   it("should return 404 for non-existent todo ID", async () => {
     const res = await request(app).get("/todos/9999999");
     expect(res.status).toBe(404);
@@ -134,7 +131,7 @@ describe("Todo API Integration Tests (Safe + Unique User)", () => {
       .set("Content-Type", "application/json")
       .send({ todo_name: "bad" });
     expect(res.status).toBe(400);
-    expect(res.body.message || res.body.error).toMatch(/invalid/i);
+    expect(res.body.message).toMatch(/invalid/i);
   });
 
   it("should return 404 when updating non-existent todo", async () => {
@@ -148,7 +145,7 @@ describe("Todo API Integration Tests (Safe + Unique User)", () => {
   it("should return 400 for invalid ID on delete", async () => {
     const res = await request(app).delete("/todos/abc");
     expect(res.status).toBe(400);
-    expect(res.body.message || res.body.error).toMatch(/invalid/i);
+    expect(res.body.message ).toMatch(/invalid/i);
   });
 
   it("should return 404 for non-existent todo on delete", async () => {

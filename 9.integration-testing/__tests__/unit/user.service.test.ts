@@ -15,7 +15,7 @@ jest.mock("../src/mailer/emailTemplates");
 
 describe("User Service Test Suite", () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        jest.clearAllMocks(); //means no test affects another
     });
 
     //listUsers
