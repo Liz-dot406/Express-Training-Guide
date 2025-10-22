@@ -1,9 +1,9 @@
-import * as userRepositories from "../src/repositories/user.repository";
-import * as userServices from "../src/services/user.service"
+import * as userRepositories from "../../src/repositories/user.repository";
+import * as userServices from "../../src/services/user.service"
 import bycrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { sendEmail } from "../src/mailer/mailer";
-import { emailTemplate } from "../src/mailer/emailTemplates";
+import { sendEmail } from "../../src/mailer/mailer";
+import { emailTemplate } from "../../src/mailer/emailTemplates";
 
 //mock all external dependencies
 jest.mock("../src/repositories/user.repository");
@@ -15,7 +15,7 @@ jest.mock("../src/mailer/emailTemplates");
 
 describe("User Service Test Suite", () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        jest.clearAllMocks(); //means no test affects another
     });
 
     //listUsers
@@ -57,7 +57,7 @@ describe("User Service Test Suite", () => {
             phone_number: "0711000003",
             password: "password123"
         };
-// mockResolvedValue is a Jest helper that makes a mock function return a resolved Promise with the given value.
+
         (bycrypt.hash as jest.Mock).mockResolvedValue("hashedPassword");
         (userRepositories.createUser as jest.Mock).mockResolvedValue({ message: "user created successfully. Verification code sent to email" });
         (userRepositories.setVerificationCode as jest.Mock).mockResolvedValue({}); //left empty because it returns nothing
@@ -165,7 +165,7 @@ describe("User Service Test Suite", () => {
 
         const result = await userServices.deleteUser(1);
         expect(userRepositories.deleteUser).toHaveBeenCalledWith(1);
-        expect(result).toEqual({ message: "User deleted successfully"});
+        expect(result).toEqual({ message: "User deleted successfully" });
     });
 
 
